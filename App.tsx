@@ -1,20 +1,107 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import React from "react";
+import { StatusBar } from "expo-status-bar";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+import { NavigationContainer } from "@react-navigation/native";
+import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { Ionicons } from "@expo/vector-icons";
 
-export default function App() {
+import { DashboardScreen } from "./src/screens/DashboardScreen";
+import { ClientsScreen } from "./src/screens/ClientsScreen";
+import { ClientDetailScreen } from "./src/screens/ClientDetailScreen";
+import { EnquiriesScreen } from "./src/screens/EnquiriesScreen";
+import { EnquiryDetailScreen } from "./src/screens/EnquiryDetailScreen";
+import { RemindersScreen } from "./src/screens/RemindersScreen";
+import { NewClientScreen } from "./src/screens/NewClientScreen";
+import { NewEnquiryScreen } from "./src/screens/NewEnquiryScreen";
+import { COLORS } from "./src/lib/constants";
+
+// ─── Tab Navigator ────────────────────────────────────────────────────────────
+const Tab = createBottomTabNavigator();
+
+function TabNavigator() {
   return (
-    <View style={styles.container}>
-      <Text>Open up App.tsx to start working on your app!</Text>
-      <StatusBar style="auto" />
-    </View>
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        headerShown: true,
+        headerStyle: { backgroundColor: COLORS.card },
+        headerTintColor: COLORS.text,
+        headerTitleStyle: { fontWeight: "700" },
+        headerShadowVisible: false,
+        tabBarStyle: {
+          backgroundColor: COLORS.card,
+          borderTopColor: COLORS.border,
+          borderTopWidth: 1,
+        },
+        tabBarItemStyle: {
+          paddingVertical: 6,
+        },
+        tabBarActiveTintColor: COLORS.primary,
+        tabBarInactiveTintColor: COLORS.textDim,
+        tabBarLabelStyle: { fontSize: 11, fontWeight: "600" },
+        tabBarIcon: ({ color, size, focused }) => {
+          const icons: Record<string, keyof typeof Ionicons.glyphMap> = {
+            Dashboard: focused ? "grid" : "grid-outline",
+            Clients: focused ? "people" : "people-outline",
+            Enquiries: focused ? "document-text" : "document-text-outline",
+            Reminders: focused ? "alarm" : "alarm-outline",
+          };
+          return <Ionicons name={icons[route.name]} size={size} color={color} />;
+        },
+      })}
+    >
+      <Tab.Screen name="Dashboard" component={DashboardScreen} />
+      <Tab.Screen name="Clients" component={ClientsScreen} />
+      <Tab.Screen name="Enquiries" component={EnquiriesScreen} />
+      <Tab.Screen name="Reminders" component={RemindersScreen} />
+    </Tab.Navigator>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
+// ─── Root Stack Navigator ─────────────────────────────────────────────────────
+const Stack = createNativeStackNavigator();
+
+export default function App() {
+  return (
+    <SafeAreaProvider>
+      <NavigationContainer>
+        <StatusBar style="light" />
+        <Stack.Navigator
+          screenOptions={{
+            headerStyle: { backgroundColor: COLORS.card },
+            headerTintColor: COLORS.text,
+            headerTitleStyle: { fontWeight: "700" },
+            headerShadowVisible: false,
+            contentStyle: { backgroundColor: COLORS.bg },
+          }}
+        >
+          <Stack.Screen
+            name="Main"
+            component={TabNavigator}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="ClientDetail"
+            component={ClientDetailScreen}
+            options={{ title: "Client" }}
+          />
+          <Stack.Screen
+            name="EnquiryDetail"
+            component={EnquiryDetailScreen}
+            options={{ title: "Enquiry" }}
+          />
+          <Stack.Screen
+            name="NewClient"
+            component={NewClientScreen}
+            options={{ title: "New Client", presentation: "modal" }}
+          />
+          <Stack.Screen
+            name="NewEnquiry"
+            component={NewEnquiryScreen}
+            options={{ title: "New Enquiry", presentation: "modal" }}
+          />
+        </Stack.Navigator>
+      </NavigationContainer>
+    </SafeAreaProvider>
+  );
+}
