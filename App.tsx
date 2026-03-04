@@ -1,10 +1,14 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { View, ActivityIndicator } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { NavigationContainer } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
+
+import { getDB } from "./src/lib/db";
+import { COLORS } from "./src/lib/constants";
 
 import { DashboardScreen } from "./src/screens/DashboardScreen";
 import { ClientsScreen } from "./src/screens/ClientsScreen";
@@ -14,7 +18,7 @@ import { EnquiryDetailScreen } from "./src/screens/EnquiryDetailScreen";
 import { RemindersScreen } from "./src/screens/RemindersScreen";
 import { NewClientScreen } from "./src/screens/NewClientScreen";
 import { NewEnquiryScreen } from "./src/screens/NewEnquiryScreen";
-import { COLORS } from "./src/lib/constants";
+import { BackupScreen } from "./src/screens/BackupScreen";
 
 // ─── Tab Navigator ────────────────────────────────────────────────────────────
 const Tab = createBottomTabNavigator();
@@ -33,9 +37,7 @@ function TabNavigator() {
           borderTopColor: COLORS.border,
           borderTopWidth: 1,
         },
-        tabBarItemStyle: {
-          paddingVertical: 6,
-        },
+        tabBarItemStyle: { paddingVertical: 6 },
         tabBarActiveTintColor: COLORS.primary,
         tabBarInactiveTintColor: COLORS.textDim,
         tabBarLabelStyle: { fontSize: 11, fontWeight: "600" },
@@ -45,6 +47,7 @@ function TabNavigator() {
             Clients: focused ? "people" : "people-outline",
             Enquiries: focused ? "document-text" : "document-text-outline",
             Reminders: focused ? "alarm" : "alarm-outline",
+            Backup: focused ? "cloud-upload" : "cloud-upload-outline",
           };
           return <Ionicons name={icons[route.name]} size={size} color={color} />;
         },
@@ -54,6 +57,7 @@ function TabNavigator() {
       <Tab.Screen name="Clients" component={ClientsScreen} />
       <Tab.Screen name="Enquiries" component={EnquiriesScreen} />
       <Tab.Screen name="Reminders" component={RemindersScreen} />
+      <Tab.Screen name="Backup" component={BackupScreen} />
     </Tab.Navigator>
   );
 }
@@ -62,6 +66,24 @@ function TabNavigator() {
 const Stack = createNativeStackNavigator();
 
 export default function App() {
+  const [dbReady, setDbReady] = useState(false);
+
+  useEffect(() => {
+    getDB()
+      .then(() => setDbReady(true))
+      .catch(console.error);
+  }, []);
+
+  if (!dbReady) {
+    return (
+      <SafeAreaProvider>
+        <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: COLORS.bg }}>
+          <ActivityIndicator color={COLORS.primary} size="large" />
+        </View>
+      </SafeAreaProvider>
+    );
+  }
+
   return (
     <SafeAreaProvider>
       <NavigationContainer>

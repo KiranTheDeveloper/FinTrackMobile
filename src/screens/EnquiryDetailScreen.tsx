@@ -8,6 +8,20 @@ import { ServiceBadge } from "../components/ServiceBadge";
 
 type EnquiryDetail = Enquiry & { statusHistory: StatusHistory[] };
 
+const DATE_PRESETS = [
+  { label: "Tomorrow", days: 1 },
+  { label: "3 days", days: 3 },
+  { label: "1 week", days: 7 },
+  { label: "2 weeks", days: 14 },
+  { label: "1 month", days: 30 },
+];
+
+function addDays(days: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return d.toISOString();
+}
+
 export function EnquiryDetailScreen() {
   const route = useRoute<any>();
   const [enquiry, setEnquiry] = useState<EnquiryDetail | null>(null);
@@ -16,6 +30,10 @@ export function EnquiryDetailScreen() {
   const [newStatus, setNewStatus] = useState<EnquiryStatus | "">("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
+  const [showReminderModal, setShowReminderModal] = useState(false);
+  const [reminderDays, setReminderDays] = useState<number | null>(null);
+  const [reminderMsg, setReminderMsg] = useState("");
+  const [savingReminder, setSavingReminder] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -41,6 +59,22 @@ export function EnquiryDetailScreen() {
       Alert.alert("Error", e.message);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleAddReminder = async () => {
+    if (!reminderDays || !reminderMsg.trim()) return;
+    setSavingReminder(true);
+    try {
+      await api.reminders.add(route.params.id, addDays(reminderDays), reminderMsg.trim());
+      setShowReminderModal(false);
+      setReminderDays(null);
+      setReminderMsg("");
+      load();
+    } catch (e: any) {
+      Alert.alert("Error", e.message);
+    } finally {
+      setSavingReminder(false);
     }
   };
 
@@ -79,17 +113,23 @@ export function EnquiryDetailScreen() {
         </View>
 
         {/* Reminders */}
-        {enquiry.reminders.length > 0 && (
-          <View style={styles.section}>
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Reminders</Text>
-            {enquiry.reminders.map((r) => (
-              <View key={r.id} style={[styles.reminderRow, r.isCompleted && styles.reminderDone]}>
-                <Text style={styles.reminderMsg}>{r.message}</Text>
-                <Text style={[styles.muted, { fontSize: 12 }]}>{formatDate(r.dueDate)}{r.isCompleted ? " ✓" : ""}</Text>
-              </View>
-            ))}
+            <TouchableOpacity style={styles.addReminderBtn} onPress={() => setShowReminderModal(true)}>
+              <Text style={styles.addReminderBtnText}>＋ Add</Text>
+            </TouchableOpacity>
           </View>
-        )}
+          {enquiry.reminders.length === 0 && (
+            <Text style={[styles.muted, { marginBottom: 8 }]}>No reminders yet.</Text>
+          )}
+          {enquiry.reminders.map((r) => (
+            <View key={r.id} style={[styles.reminderRow, r.isCompleted && styles.reminderDone]}>
+              <Text style={styles.reminderMsg}>{r.message}</Text>
+              <Text style={[styles.muted, { fontSize: 12 }]}>{formatDate(r.dueDate)}{r.isCompleted ? " ✓" : ""}</Text>
+            </View>
+          ))}
+        </View>
 
         {/* Status Timeline */}
         <View style={styles.section}>
@@ -107,6 +147,47 @@ export function EnquiryDetailScreen() {
           ))}
         </View>
       </ScrollView>
+
+      {/* Add Reminder Modal */}
+      <Modal visible={showReminderModal} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Add Reminder</Text>
+            <Text style={[styles.muted, { marginBottom: 10 }]}>When should we remind you?</Text>
+            <View style={styles.presets}>
+              {DATE_PRESETS.map((p) => (
+                <TouchableOpacity
+                  key={p.days}
+                  style={[styles.presetChip, reminderDays === p.days && styles.presetSelected]}
+                  onPress={() => setReminderDays(p.days)}
+                >
+                  <Text style={[styles.presetText, reminderDays === p.days && styles.presetTextSelected]}>{p.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <TextInput
+              style={styles.notesInput}
+              placeholder="Reminder message (e.g. Follow up on KYC docs)"
+              placeholderTextColor={COLORS.textDim}
+              value={reminderMsg}
+              onChangeText={setReminderMsg}
+              multiline
+            />
+            <View style={styles.modalBtns}>
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => { setShowReminderModal(false); setReminderDays(null); setReminderMsg(""); }}>
+                <Text style={{ color: COLORS.textMuted }}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.saveBtn, (!reminderDays || !reminderMsg.trim()) && styles.saveBtnDisabled]}
+                onPress={handleAddReminder}
+                disabled={!reminderDays || !reminderMsg.trim() || savingReminder}
+              >
+                <Text style={{ color: "#fff", fontWeight: "700" }}>{savingReminder ? "Saving..." : "Save"}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Status Update Modal */}
       <Modal visible={showStatusModal} transparent animationType="slide">
@@ -161,7 +242,15 @@ const styles = StyleSheet.create({
   updateBtn: { marginTop: 16, backgroundColor: COLORS.primary, borderRadius: 10, padding: 12, alignItems: "center" },
   updateBtnText: { color: "#fff", fontWeight: "700", fontSize: 15 },
   section: { paddingHorizontal: 16, paddingBottom: 16 },
-  sectionTitle: { color: COLORS.text, fontSize: 15, fontWeight: "700", marginBottom: 10 },
+  sectionHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 },
+  sectionTitle: { color: COLORS.text, fontSize: 15, fontWeight: "700" },
+  addReminderBtn: { backgroundColor: COLORS.primary, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6 },
+  addReminderBtnText: { color: "#fff", fontSize: 13, fontWeight: "700" },
+  presets: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 },
+  presetChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: "#1e293b", borderWidth: 1, borderColor: COLORS.border },
+  presetSelected: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+  presetText: { color: COLORS.textMuted, fontSize: 13, fontWeight: "600" },
+  presetTextSelected: { color: "#fff" },
   reminderRow: { backgroundColor: COLORS.card, borderRadius: 10, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: COLORS.border },
   reminderDone: { opacity: 0.5 },
   reminderMsg: { color: COLORS.text, fontWeight: "600", fontSize: 14 },
